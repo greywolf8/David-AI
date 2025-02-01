@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinGenie AI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            height: 100vh;
+            background: url('images/background1.webp') no-repeat center center/cover;
+        }
+
+        .sidebar {
+            width: 250px;
+            background: #2c3e50;
+            color: white;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .new-chat {
+            background: #3498db;
+            color: white;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            cursor: pointer;
+        }
+
+        .chat-history {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-left: 1px solid #ccc;
+        }
+
+        .chat-box {
+            flex: 1;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 5px;
+            background: url('images/background.jpg') no-repeat center center/cover;
+        }
+
+        .input-container {
+            display: flex;
+            margin-top: 10px;
+        }
+
+        input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        button {
+            padding: 10px;
+            background: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            margin-left: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+
+        .loading {
+            font-style: italic;
+            color: #888;
+            margin-top: 5px;
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <button class="new-chat" onclick="startNewChat()">+ New Chat</button>
+        <div class="chat-history" id="chat-history"></div>
+    </div>
+
+    <div class="chat-container">
+        <h2>FinGenie AI</h2>
+        <div class="chat-box" id="chat-box"></div>
+        <div class="input-container">
+            <input type="text" id="user-input" placeholder="Ask a question...">
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        let chatSessions = [];
+        let currentChat = [];
+
+        let currentChatName = null;
+
+        function startNewChat() {
+            if (currentChat.length) saveChatHistory(); // Save current chat before clearing
+
+            currentChat = [];  // Reset chat session
+            document.getElementById("chat-box").innerHTML = "";  // Clear UI
+
+            let chatIndex = document.getElementById("chat-history").childElementCount + 1;
+            let newChatName = "chat_" + chatIndex;
+
+            fetch("http://127.0.0.1:5000/save_chat", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ chat: [], chat_name: newChatName })  // Save empty chat session
+            }).then(() => refreshChatHistory()); // Refresh list
+        }
+        document.getElementById("send-button").addEventListener("click", function() {
+            const inputField = document.getElementById("user-input");
+            const userMessage = inputField.value;
+            inputField.value = '';  // Clear the input field
+
+            // Create a new message in the chat history
+            const messagesContainer = document.getElementById("messages");
+            messagesContainer.innerHTML = '';  // Clear the previous chat messages
+
+            // Send the new chat message to the server
+            fetch("/chat", {
+                method: "POST",
+                headers: {
+                "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ question: userMessage }),
+            })
+                .then((response) => response.json())
+                .then((data) => {
+                    // Update the chat UI with the new responses
+                    data.responses.forEach((response) => {
+                        const messageDiv = document.createElement("div");
+                        messageDiv.classList.add("message", "bot");
+                        messageDiv.innerHTML = `<div class="content">${response}</div>`;
+                        messagesContainer.appendChild(messageDiv);
+                    });
+                })
+                .catch((error) => console.error("Error:", error));
+        });
+
+        async function sendMessage() {
+            let userInput = document.getElementById("user-input").value;
+            if (!userInput) return;
+
+            let chatBox = document.getElementById("chat-box");
+            chatBox.innerHTML += `<div><strong>You:</strong> ${userInput}</div>`;
+            currentChat.push({ role: "user", text: userInput });
+            document.getElementById("user-input").value = "";
+
+            try {
+                let response = await fetch("http://127.0.0.1:5000/chat", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ question: userInput })
+                });
+
+                let data = await response.json();
+                let botMessage = (data.responses && data.responses.length > 0) ? data.responses[0] : "Sorry, I couldn't understand that.";
+
+                chatBox.innerHTML += `<div><strong>Bot:</strong> ${botMessage}</div>`;
+                currentChat.push({ role: "bot", text: botMessage });
+
+                // Add feedback buttons
+                chatBox.innerHTML += `
+                    <div>Was this response correct? 
+                        <button onclick="giveFeedback(true, '${encodeURIComponent(userInput)}', '${encodeURIComponent(botMessage)}')">Yes</button> 
+                        <button onclick="askForCorrection('${encodeURIComponent(userInput)}', '${encodeURIComponent(botMessage)}')">No</button>
+                    </div>`;
+
+                saveChatHistory(); // Save chat history after every response
+            } catch (error) {
+                console.error("Error:", error);
+                chatBox.innerHTML += `<div><strong>Bot:</strong> Error occurred.</div>`;
+            }
+        }
+
+        function askForCorrection(question, botResponse) {
+            let chatBox = document.getElementById("chat-box");
+            let encodedQuestion = decodeURIComponent(question);
+            let encodedBotResponse = decodeURIComponent(botResponse);
+
+            chatBox.innerHTML += `
+                <div>
+                    Please enter the correct response: 
+                    <input type='text' id='correct-response'> 
+                    <button onclick="giveFeedback(false, '${encodedQuestion}', '${encodedBotResponse}')">Submit</button>
+                </div>`;
+        }
+
+        async function giveFeedback(isCorrect, question, botResponse) {
+            let correctResponse = isCorrect ? botResponse : document.getElementById("correct-response").value;
+            if (!correctResponse) return;
+
+            let response = await fetch("http://127.0.0.1:5000/feedback", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ question, correct_response: correctResponse })
+            });
+
+            let data = await response.json();
+            alert(data.message || "Thank you for your feedback!");
+
+            if (!isCorrect) {
+                // Disable input field and button after submission
+                document.getElementById("correct-response").disabled = true;
+            }
+        }
+
+        // Fix: Make previous chats clickable and load them
+        function refreshChatHistory() {
+            let chatHistoryDiv = document.getElementById("chat-history");
+            chatHistoryDiv.innerHTML = "";
+            fetch("http://127.0.0.1:5000/list_chats")
+                .then(response => response.json())
+                .then(data => {
+                    data.chats.forEach(chatName => {
+                        let chatItem = document.createElement("div");
+                        chatItem.innerText = chatName;
+                        chatItem.style.cursor = "pointer";
+                        chatItem.onclick = function () { loadChatHistory(chatName); };
+                        chatHistoryDiv.appendChild(chatItem);
+                    });
+                });
+        }
+
+        function saveChatHistory() {
+            if (!currentChatName) {
+                let chatIndex = document.getElementById("chat-history").childElementCount + 1;
+                currentChatName = "chat_" + chatIndex;  // Generate a name if none exists
+            }
+
+            fetch("http://127.0.0.1:5000/save_chat", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ chat: currentChat, chat_name: currentChatName })  // Keep saving in the same chat file
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message || "Chat saved successfully!");
+                refreshChatHistory();  // Update chat list
+            })
+            .catch(error => console.error("Error saving chat:", error));
+        }
+
+        // Fix: Show feedback response after submission
+        async function giveFeedback(isCorrect, question, botResponse) {
+            let correctResponse = isCorrect ? botResponse : document.getElementById("correct-response").value;
+            if (!correctResponse) return;
+    
+            let response = await fetch("http://127.0.0.1:5000/feedback", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ question, correct_response: correctResponse })
+            });
+    
+            let data = await response.json();
+            alert(data.message);  // Show "Thank you for your feedback! The model is learning from your input."
+        }
+
+        // Call refreshChatHistory on page load to show saved chats
+        document.addEventListener("DOMContentLoaded", refreshChatHistory);
+
+
+        function loadChatHistory(chatName) {
+            fetch("http://127.0.0.1:5000/load_chat", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ chat_name: chatName })
+            })
+            .then(response => response.json())
+            .then(data => {
+                let chatBox = document.getElementById("chat-box");
+                chatBox.innerHTML = "";
+                currentChat = data.chat || [];
+                currentChatName = chatName; 
+
+                currentChat.forEach(msg => {
+                    chatBox.innerHTML += `<div><strong>${msg.role === "user" ? "You" : "Bot"}:</strong> ${msg.text}</div>`;
+                });
+            })
+            .catch(error => console.error("Error loading chat:", error));
+        }
+    </script>
+</body>
+</html>
