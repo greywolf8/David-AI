@@ -1,0 +1,58 @@
+[
+    {
+        "role": "user",
+        "text": "hi"
+    },
+    {
+        "role": "bot",
+        "text": "Hello! I am FinGenie, your AI accountant. I specialize in answering finance-related questions such as tax laws, capital gains, and income finance."
+    },
+    {
+        "role": "user",
+        "text": "hi"
+    },
+    {
+        "role": "bot",
+        "text": "Hello! I am FinGenie, your AI accountant. I specialize in answering finance-related questions such as tax laws, capital gains, and income finance."
+    },
+    {
+        "role": "user",
+        "text": "hi"
+    },
+    {
+        "role": "bot",
+        "text": "Hello! I am FinGenie, your AI accountant. I specialize in answering finance-related questions such as tax laws, capital gains, and income finance."
+    },
+    {
+        "role": "user",
+        "text": "hi"
+    },
+    {
+        "role": "bot",
+        "text": "Hello! I am FinGenie, your AI accountant. I specialize in answering finance-related questions such as tax laws, capital gains, and income finance."
+    },
+    {
+        "role": "user",
+        "text": "income tax"
+    },
+    {
+        "role": "bot",
+        "text": "No. of such sum as income-tax. of no more than $1.5 million. No. of income- tax. of $1 million or more for more than one year. No more than \u00a31 million for two years."
+    },
+    {
+        "role": "user",
+        "text": "hi"
+    },
+    {
+        "role": "bot",
+        "text": "Hello! I am FinGenie, your AI accountant. I specialize in answering finance-related questions such as tax laws, capital gains, and income finance."
+    },
+    {
+        "role": "user",
+        "text": "income tax"
+    },
+    {
+        "role": "bot",
+        "text": "No. of such sum as income-tax. of no more than $1.5 million. No. of income- tax. of $1 million or more for more than one year. No more than \u00a31 million for two years."
+    }
+]
